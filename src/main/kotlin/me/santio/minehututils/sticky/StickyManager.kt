@@ -73,7 +73,8 @@ object StickyManager {
                             channel.deleteMessageById(it).await()
                         }
 
-                        val newMsg = channel.sendMessage(sticky.message).await()
+                        val message = sticky.message + "\n-# This is an automated sticky message."
+                        val newMsg = channel.sendMessage(message).await()
                         sticky.lastMessageId = newMsg.id
 
                     } catch (_: Exception) {
