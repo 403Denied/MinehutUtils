@@ -1,7 +1,6 @@
 package me.santio.minehututils.sticky
 
 import dev.minn.jda.ktx.coroutines.await
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.santio.minehututils.bot
@@ -46,6 +45,9 @@ object StickyManager {
                 delay(5000)
                 stickyMessages.values.forEach { sticky ->
                     val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel ?: return@forEach
+
+                    val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
+                    if (lastMessage?.id == sticky.lastMessageId) return@forEach
 
                     if (sticky.lastMessageId != null) {
                         channel.deleteMessageById(sticky.lastMessageId!!).await()
