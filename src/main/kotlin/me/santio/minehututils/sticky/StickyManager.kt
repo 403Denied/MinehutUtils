@@ -23,20 +23,17 @@ object StickyManager {
         startLoop()
     }
 
-    fun stick(guildId: String, channelId: String, message: String, userId: String) {
-        stickyMessages[guildId] = StickyMessage(channelId, message, userId)
+
+    fun stick(channelId: String, message: String, userId: String) {
+        stickyMessages[channelId] = StickyMessage(channelId, message, userId)
     }
 
-    fun unstick(guildId: String) {
-        stickyMessages.remove(guildId)
+    fun unstick(channelId: String) {
+        stickyMessages.remove(channelId)
     }
-    
-    fun isStickied(guildId: String): Boolean {
-        return stickyMessages.containsKey(guildId)
-    }
-    
-    fun getStickyChannel(guildId: String): String? {
-        return stickyMessages[guildId]?.channelId
+
+    fun isStickied(channelId: String): Boolean {
+        return stickyMessages.containsKey(channelId)
     }
 
     private fun startLoop() {
@@ -44,14 +41,13 @@ object StickyManager {
             while (true) {
                 delay(5000)
                 stickyMessages.values.forEach { sticky ->
-                    val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel ?: return@forEach
+                    val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel
+                        ?: return@forEach
 
                     val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
                     if (lastMessage?.id == sticky.lastMessageId) return@forEach
 
-                    if (sticky.lastMessageId != null) {
-                        channel.deleteMessageById(sticky.lastMessageId!!).await()
-                    }
+                    sticky.lastMessageId?.let { channel.deleteMessageById(it).await() }
 
                     val newMsg = channel.sendMessage(sticky.message).await()
                     sticky.lastMessageId = newMsg.id

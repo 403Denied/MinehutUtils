@@ -41,31 +41,35 @@ class StickyCommand : SlashCommand {
                 return
             }
 
-            val currentlyStickied = StickyManager.getStickyChannel(event.guild!!.id)
-            if (currentlyStickied != null) {
-                if (currentlyStickied == channel.id) {
-                    event.replyEmbeds(EmbedFactory.error("There is already a message stickied here", event.guild!!).build())
-                        .setEphemeral(true)
-                        .queue()
-                    return
-                }
-            }
-            
-            StickyManager.stick(event.guild!!.id, channel.id, message, event.user.id)
-            
-            event.replyEmbeds(EmbedFactory.success("Successfully stickied message", event.guild!!).build())
-                .setEphemeral(true)
-                .queue()
-        } else {
-            if (!StickyManager.isStickied(event.guild!!.id)) {
-                event.replyEmbeds(EmbedFactory.error("No message found", event.guild!!).build())
+            if (StickyManager.isStickied(channel.id)) {
+                event.replyEmbeds(
+                    EmbedFactory.error(
+                        "There is already a message stickied here",
+                        event.guild!!
+                    ).build()
+                )
                     .setEphemeral(true)
                     .queue()
                 return
             }
             
-            StickyManager.unstick(event.guild!!.id)
+            StickyManager.stick(channel.id, message, event.user.id)
             
+            event.replyEmbeds(EmbedFactory.success("Successfully stickied message", event.guild!!).build())
+                .setEphemeral(true)
+                .queue()
+        } else {
+            if (!StickyManager.isStickied(channel.id)) {
+                event.replyEmbeds(
+                    EmbedFactory.error("No stickied message found in this channel", event.guild!!).build()
+                )
+                    .setEphemeral(true)
+                    .queue()
+                return
+            }
+
+            StickyManager.unstick(channel.id)
+
             event.replyEmbeds(EmbedFactory.success("Successfully unstuck message", event.guild!!).build())
                 .setEphemeral(true)
                 .queue()
