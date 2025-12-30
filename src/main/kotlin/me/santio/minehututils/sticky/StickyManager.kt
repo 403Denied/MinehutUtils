@@ -60,19 +60,27 @@ object StickyManager {
         scope.launch {
             while (true) {
                 delay(5000)
+
                 stickyMessages.values.forEach { sticky ->
-                    val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel
-                        ?: return@forEach
+                    try {
+                        val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel
+                            ?: return@forEach
 
-                    val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
-                    if (lastMessage?.id == sticky.lastMessageId) return@forEach
+                        val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
+                        if (lastMessage?.id == sticky.lastMessageId) return@forEach
 
-                    sticky.lastMessageId?.let { channel.deleteMessageById(it).await() }
+                        sticky.lastMessageId?.let {
+                            channel.deleteMessageById(it).await()
+                        }
 
-                    val newMsg = channel.sendMessage(sticky.message).await()
-                    sticky.lastMessageId = newMsg.id
+                        val newMsg = channel.sendMessage(sticky.message).await()
+                        sticky.lastMessageId = newMsg.id
+
+                    } catch (_: Exception) {
+                    }
                 }
             }
         }
     }
+
 }
