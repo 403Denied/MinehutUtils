@@ -1,9 +1,11 @@
 package me.santio.minehututils.sticky
 
 import dev.minn.jda.ktx.coroutines.await
+import dev.minn.jda.ktx.interactions.components.ModalBuilder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.santio.minehututils.bot
+import me.santio.minehututils.factories.EmbedFactory
 import me.santio.minehututils.scope
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel
 import java.util.concurrent.ConcurrentHashMap
@@ -73,9 +75,13 @@ object StickyManager {
                             channel.deleteMessageById(it).await()
                         }
 
-                        val message = sticky.message + "\n-# This is an automated sticky message."
-                        val newMsg = channel.sendMessage(message).await()
-                        sticky.lastMessageId = newMsg.id
+                        val embed = channel.sendMessageEmbeds(EmbedFactory.default("") {
+                            it.setTitle(sticky.message)
+                            it.setFooter("This is an automated sticky message.")
+                        }.build()).await()
+
+                        sticky.lastMessageId = embed.id
+
 
                     } catch (_: Exception) {
                     }
