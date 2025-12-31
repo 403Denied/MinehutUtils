@@ -47,24 +47,12 @@ class StickyCommand : SlashCommand {
         when (event.subcommandName){
             "start" -> {
                 val message = event.getOption("message")?.asString
-                if (StickyManager.isActive(channel.id)){
-                    event.replyEmbeds(
-                        EmbedFactory.error(
-                            "There is already a stickied message in this channel. Use /sticky set <message> to update it!",
-                            guild
-                        ).build()
-                    ).setEphemeral(true).queue()
-                    return
-                }
-                if (message == null && StickyManager.getMessage(channel.id) == null) {
-                    event.replyEmbeds(
-                        EmbedFactory.error(
-                            "There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking",
-                            guild
-                        ).build()
-                    ).setEphemeral(true).queue()
-                    return
-                }
+                    ?: StickyManager.getMessage(channel.id)
+
+                if (StickyManager.isActive(channel.id)) error("There is already a stickied message in this channel.", true)
+                if (message == null) error("There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking", true)
+                if (message.length > 4096) error("The message is too long. (max 4096 characters)")
+
                 StickyManager.start(channel.id, message)
                 event.replyEmbeds(
                     EmbedFactory.success(
@@ -81,15 +69,8 @@ class StickyCommand : SlashCommand {
             }
 
             "stop" -> {
-                if (!StickyManager.isActive(channel.id)){
-                    event.replyEmbeds(
-                        EmbedFactory.error(
-                            "There is not a stickied message in this channel.",
-                            guild
-                        ).build()
-                    ).setEphemeral(true).queue()
-                    return
-                }
+                if (!StickyManager.isActive(channel.id)) error("There is not a stickied message in this channel.", true)
+
                 event.replyEmbeds(
                     EmbedFactory.success(
                         "Stopped sticking the message",
@@ -107,10 +88,12 @@ class StickyCommand : SlashCommand {
 
             "set" -> {
                 val message = event.getOption("message")?.asString
-                StickyManager.set(channel.id, message!!)
+                if (message!!.length > 4096) error("The message is too long. (max 4096 characters)")
+
+                StickyManager.set(channel.id, message)
                 event.replyEmbeds(
                     EmbedFactory.success(
-                        "Updated the stickied message! sending below...",
+                        "Updated the stickied message! Sending below...",
                         guild
                     ).build(),
                     StickyManager.getEmbed(channel.id)
@@ -124,18 +107,11 @@ class StickyCommand : SlashCommand {
             }
 
             "view" -> {
-                if (StickyManager.getMessage(channel.id) == null) {
-                    event.replyEmbeds(
-                        EmbedFactory.error(
-                            "There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking",
-                            guild
-                        ).build()
-                    ).setEphemeral(true).queue()
-                    return
-                }
+                if (StickyManager.getMessage(channel.id) == null) error("There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking", true)
+
                 event.replyEmbeds(
                     EmbedFactory.success(
-                        "sending below...",
+                        "Sending below...",
                         guild
                     ).build(),
                     StickyManager.getEmbed(channel.id)

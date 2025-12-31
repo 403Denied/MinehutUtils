@@ -87,11 +87,17 @@ object StickyManager {
     }
 
     /**
-     * Get the embed for a stuck message in a channel
+     * Get the embed for a stuck message in a channel.
      * @param channelId The id of the channel to sticky
      * @return The embed being stuck for the channel
      */
     fun getEmbed(channelId: String): MessageEmbed {
+        if (getMessage(channelId)?.length!! > 256) {
+            val embed = EmbedFactory.default(getMessage(channelId)!!) {
+                it.setFooter("This is an automated sticky message.")
+            }.build()
+            return embed
+        }
         val embed = EmbedFactory.default("") {
             it.setTitle(getMessage(channelId))
             it.setFooter("This is an automated sticky message.")
