@@ -6,6 +6,7 @@ import dev.minn.jda.ktx.interactions.commands.Option
 import dev.minn.jda.ktx.interactions.commands.Subcommand
 import me.santio.minehututils.commands.SlashCommand
 import me.santio.minehututils.factories.EmbedFactory
+import me.santio.minehututils.logger.GuildLogger
 import me.santio.minehututils.sticky.StickyManager
 import net.dv8tion.jda.api.Permission
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
@@ -71,6 +72,12 @@ class StickyCommand : SlashCommand {
                         guild
                     ).build()
                 ).setEphemeral(true).queue()
+                GuildLogger.of(event.guild!!).log(
+                    "A sticky was started by ${event.user.asMention}",
+                    ":identification_card: User: ${event.member?.asMention} *(${event.user.name} - ${event.user.id})*",
+                    ":package: Channel: ${channel.asMention} *(${channel.name} - ${channel.id})*",
+                    ":label: Message: " + StickyManager.getMessage(channel.id)
+                ).withContext(event).titled("Sticky Changed").post()
             }
 
             "stop" -> {
@@ -89,8 +96,13 @@ class StickyCommand : SlashCommand {
                         guild
                     ).build()
                 ).setEphemeral(true).queue()
-
                 StickyManager.stop(channel.id)
+                GuildLogger.of(event.guild!!).log(
+                    "A sticky was stopped by ${event.user.asMention}",
+                    ":identification_card: User: ${event.member?.asMention} *(${event.user.name} - ${event.user.id})*",
+                    ":package: Channel: ${channel.asMention} *(${channel.name} - ${channel.id})*",
+                    ":label: Message: " + StickyManager.getMessage(channel.id)
+                ).withContext(event).titled("Sticky Changed").post()
             }
 
             "set" -> {
@@ -103,6 +115,12 @@ class StickyCommand : SlashCommand {
                     ).build(),
                     StickyManager.getEmbed(channel.id)
                 ).setEphemeral(true).queue()
+                GuildLogger.of(event.guild!!).log(
+                    "A sticky messaged was updated by ${event.user.asMention}",
+                    ":identification_card: User: ${event.member?.asMention} *(${event.user.name} - ${event.user.id})*",
+                    ":package: Channel: ${channel.asMention} *(${channel.name} - ${channel.id})*",
+                    ":label: Message: " + StickyManager.getMessage(channel.id)
+                ).withContext(event).titled("Sticky Changed").post()
             }
 
             "view" -> {

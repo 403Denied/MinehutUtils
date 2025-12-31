@@ -8,7 +8,6 @@ import me.santio.minehututils.scope
 import net.dv8tion.jda.api.entities.MessageEmbed
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.concurrent.timer
 
 /**
  * The stickied manager for handling stickied messages. By design, there can only be one stickied
