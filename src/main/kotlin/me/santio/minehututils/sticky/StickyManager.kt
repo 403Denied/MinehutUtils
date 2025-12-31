@@ -20,7 +20,7 @@ object StickyManager {
         val channelId: String,
         var message: String,
         var lastMessageId: String? = null,
-        var active: Boolean? = false
+        var active: Boolean = false
     )
 
     private val stickyMessages = ConcurrentHashMap<String, StickyMessage>()
@@ -30,17 +30,17 @@ object StickyManager {
      * @param channelId The id of the channel to sticky
      * @param message The message to sticky
      */
-    fun start(channelId: String, message: String?) {
+    fun start(channelId: String, message: String) {
         val sticky = stickyMessages[channelId]
 
         if (sticky == null) {
             stickyMessages[channelId] = StickyMessage(
                 channelId = channelId,
-                message = message ?: error("No previous message found. Please provide a message."),
+                message = message,
                 active = true
             )
         } else {
-            message?.let { sticky.message = it }
+            message.let { sticky.message = it }
             sticky.active = true
         }
     }
@@ -111,7 +111,7 @@ object StickyManager {
     fun refreshSticky() {
         scope.launch {
             stickyMessages.values.forEach { sticky -> try {
-                    if (!sticky.active!!) return@forEach
+                    if (!sticky.active) return@forEach
                     val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel
                         ?: return@forEach
 

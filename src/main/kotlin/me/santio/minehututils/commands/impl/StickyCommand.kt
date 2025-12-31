@@ -29,14 +29,13 @@ class StickyCommand : SlashCommand {
                         Option<String>("message", "The message to stick", required = false)
                     )
                 },
-                Subcommand("stop", "Unstick the message") {},
+                Subcommand("stop", "Unstick the message"),
                 Subcommand("set", "Set the stickied message") {
                     addOptions(
                         Option<String>("message", "The message to stick", required = true)
                     )
                 },
-                Subcommand("view", "View the stickied message") {
-                })
+                Subcommand("view", "View the stickied message"))
         }
     }
 
@@ -49,8 +48,8 @@ class StickyCommand : SlashCommand {
                 val message = event.getOption("message")?.asString
                     ?: StickyManager.getMessage(channel.id)
 
-                if (StickyManager.isActive(channel.id)) error("There is already a stickied message in this channel.", true)
-                if (message == null) error("There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking", true)
+                if (StickyManager.isActive(channel.id)) error("There is already a stickied message in this channel.")
+                if (message == null) error("There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking")
                 if (message.length > 4096) error("The message is too long. (max 4096 characters)")
 
                 StickyManager.start(channel.id, message)
@@ -60,7 +59,7 @@ class StickyCommand : SlashCommand {
                         guild
                     ).build()
                 ).setEphemeral(true).queue()
-                GuildLogger.of(event.guild!!).log(
+                GuildLogger.of(guild!!).log(
                     "A sticky was started by ${event.user.asMention}",
                     ":identification_card: User: ${event.member?.asMention} *(${event.user.name} - ${event.user.id})*",
                     ":package: Channel: ${channel.asMention} *(${channel.name} - ${channel.id})*",
@@ -69,7 +68,7 @@ class StickyCommand : SlashCommand {
             }
 
             "stop" -> {
-                if (!StickyManager.isActive(channel.id)) error("There is not a stickied message in this channel.", true)
+                if (!StickyManager.isActive(channel.id)) error("There is not a stickied message in this channel.")
 
                 event.replyEmbeds(
                     EmbedFactory.success(
@@ -88,7 +87,8 @@ class StickyCommand : SlashCommand {
 
             "set" -> {
                 val message = event.getOption("message")?.asString
-                if (message!!.length > 4096) error("The message is too long. (max 4096 characters)")
+                    ?: error("You must provide a message to set")
+                if (message.length > 4096) error("The message is too long. (max 4096 characters)")
 
                 StickyManager.set(channel.id, message)
                 event.replyEmbeds(
@@ -107,7 +107,7 @@ class StickyCommand : SlashCommand {
             }
 
             "view" -> {
-                if (StickyManager.getMessage(channel.id) == null) error("There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking", true)
+                if (StickyManager.getMessage(channel.id) == null) error("There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking")
 
                 event.replyEmbeds(
                     EmbedFactory.success(
