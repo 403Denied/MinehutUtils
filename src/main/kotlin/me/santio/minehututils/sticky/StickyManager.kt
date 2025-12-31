@@ -1,12 +1,12 @@
 package me.santio.minehututils.sticky
 
 import dev.minn.jda.ktx.coroutines.await
-import dev.minn.jda.ktx.interactions.components.ModalBuilder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.santio.minehututils.bot
 import me.santio.minehututils.factories.EmbedFactory
 import me.santio.minehututils.scope
+import net.dv8tion.jda.api.entities.MessageEmbed
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel
 import java.util.concurrent.ConcurrentHashMap
 
@@ -16,12 +16,13 @@ import java.util.concurrent.ConcurrentHashMap
  * @author ddbrother
  */
 object StickyManager {
-    
+
     data class StickyMessage(
         val channelId: String,
-        val message: String,
+        var message: String,
         val userId: String,
-        var lastMessageId: String? = null
+        var lastMessageId: String? = null,
+        var active: Boolean? = false
     )
 
     private val stickyMessages = ConcurrentHashMap<String, StickyMessage>()
@@ -30,32 +31,51 @@ object StickyManager {
         startLoop()
     }
 
-    /**
-     * Sticks the message in a channel when a user attempts to sticky a message
-     * @param channelId The channel ID
-     * @param message The message to sticky
-     * @param userId The ID of the user attempting to sticky a message
-     */
-    fun stick(channelId: String, message: String, userId: String) {
-        stickyMessages[channelId] = StickyMessage(channelId, message, userId)
+    fun start(channelId: String, message: String?, userId: String) {
+        val sticky = stickyMessages[channelId]
+
+        if (sticky == null) {
+            stickyMessages[channelId] = StickyMessage(
+                channelId = channelId,
+                message = message ?: error("No previous message found. Please provide a message."),
+                userId = userId,
+                active = true
+            )
+        } else {
+            message?.let { sticky.message = it }
+            sticky.active = true
+        }
     }
 
-    /**
-     * Unsticks the message in a channel when a user attempts to unstick a message.
-     * Since there is only one possible message, channelId is sufficient to identify it.
-     * @param channelId The channel ID
-     */
-    fun unstick(channelId: String) {
-        stickyMessages.remove(channelId)
+    fun stop(channelId: String) {
+        stickyMessages[channelId]?.active = false
     }
 
-    /**
-     * Check to see if a stickied message exists for the given channel.
-     * @param channelId The channel ID
-     * @return Whether a stickied message exists for the channel
-     */
-    fun isStickied(channelId: String): Boolean {
-        return stickyMessages.containsKey(channelId)
+    fun set(channelId: String, message: String, userID: String) {
+        val sticky = stickyMessages[channelId]
+        if (sticky == null) {
+            start(channelId, message, userID)
+            stop(channelId)
+        } else {
+            stickyMessages[channelId]?.message = message
+        }
+    }
+
+    fun getMessage(channelId: String): String? {
+        return stickyMessages[channelId]?.message
+    }
+
+    fun isActive(channelId: String): Boolean {
+        return stickyMessages[channelId]?.active == true
+    }
+
+    fun getEmbed(channelId: String): MessageEmbed {
+        val embed = EmbedFactory.default("") {
+            it.setTitle(getMessage(channelId))
+            it.setFooter("This is an automated sticky message.")
+        }.build()
+
+        return embed
     }
 
     private fun startLoop() {
@@ -65,6 +85,7 @@ object StickyManager {
 
                 stickyMessages.values.forEach { sticky ->
                     try {
+                        if (!sticky.active!!) return@forEach
                         val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel
                             ?: return@forEach
 

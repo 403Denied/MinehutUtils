@@ -3,6 +3,7 @@ package me.santio.minehututils.commands.impl
 import com.google.auto.service.AutoService
 import dev.minn.jda.ktx.interactions.commands.Command
 import dev.minn.jda.ktx.interactions.commands.Option
+import dev.minn.jda.ktx.interactions.commands.Subcommand
 import me.santio.minehututils.commands.SlashCommand
 import me.santio.minehututils.factories.EmbedFactory
 import me.santio.minehututils.sticky.StickyManager
@@ -21,58 +22,107 @@ class StickyCommand : SlashCommand {
 
             defaultPermissions = DefaultMemberPermissions.enabledFor(Permission.MESSAGE_MANAGE)
 
-            addOptions(
-                Option<Boolean>("stick", "Whether to stick or unstick a message", required = true),
-                Option<String>("message", "The message to stick", required = false)
-            )
+            addSubcommands(
+                Subcommand("start", "Stick the message") {
+                    addOptions(
+                        Option<String>("message", "The message to stick", required = false)
+                    )
+                },
+                Subcommand("stop", "Unstick the message") {},
+                Subcommand("set", "Set the stickied message") {
+                    addOptions(
+                        Option<String>("message", "The message to stick", required = true)
+                    )
+                },
+                Subcommand("view", "View the stickied message") {
+                })
         }
     }
 
     override suspend fun execute(event: SlashCommandInteractionEvent) {
-        val stick = event.getOption("stick")?.asBoolean ?: return
-        val message = event.getOption("message")?.asString
         val channel = event.channel
-        
-        if (stick) {
-            if (message == null) {
-                event.replyEmbeds(EmbedFactory.error("You must provide a message to sticky", event.guild!!).build())
-                    .setEphemeral(true)
-                    .queue()
-                return
-            }
+        val guild = event.guild
 
-            if (StickyManager.isStickied(channel.id)) {
+        when (event.subcommandName){
+            "start" -> {
+                val message = event.getOption("message")?.asString
+                if (StickyManager.isActive(channel.id)){
+                    event.replyEmbeds(
+                        EmbedFactory.error(
+                            "There is already a stickied message in this channel. Use /sticky set <message> to update it!",
+                            guild
+                        ).build()
+                    ).setEphemeral(true).queue()
+                    return
+                }
+                if (message == null && StickyManager.getMessage(channel.id) == null) {
+                    event.replyEmbeds(
+                        EmbedFactory.error(
+                            "There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking",
+                            guild
+                        ).build()
+                    ).setEphemeral(true).queue()
+                    return
+                }
+                StickyManager.start(channel.id, message, event.user.id)
                 event.replyEmbeds(
-                    EmbedFactory.error(
-                        "There is already a message stickied here",
-                        event.guild!!
+                    EmbedFactory.success(
+                        "Started sticking the message",
+                        guild
                     ).build()
-                )
-                    .setEphemeral(true)
-                    .queue()
-                return
+                ).setEphemeral(true).queue()
             }
-            
-            StickyManager.stick(channel.id, message, event.user.id)
-            
-            event.replyEmbeds(EmbedFactory.success("Successfully stickied message", event.guild!!).build())
-                .setEphemeral(true)
-                .queue()
-        } else {
-            if (!StickyManager.isStickied(channel.id)) {
+
+            "stop" -> {
+                if (!StickyManager.isActive(channel.id)){
+                    event.replyEmbeds(
+                        EmbedFactory.error(
+                            "There is not a stickied message in this channel.",
+                            guild
+                        ).build()
+                    ).setEphemeral(true).queue()
+                    return
+                }
                 event.replyEmbeds(
-                    EmbedFactory.error("No stickied message found in this channel", event.guild!!).build()
-                )
-                    .setEphemeral(true)
-                    .queue()
-                return
+                    EmbedFactory.success(
+                        "Stopped sticking the message",
+                        guild
+                    ).build()
+                ).setEphemeral(true).queue()
+
+                StickyManager.stop(channel.id)
             }
 
-            StickyManager.unstick(channel.id)
+            "set" -> {
+                val message = event.getOption("message")?.asString
+                StickyManager.set(channel.id, message!!, event.user.id)
+                event.replyEmbeds(
+                    EmbedFactory.success(
+                        "Updated the stickied message! sending below...",
+                        guild
+                    ).build(),
+                    StickyManager.getEmbed(channel.id)
+                ).setEphemeral(true).queue()
+            }
 
-            event.replyEmbeds(EmbedFactory.success("Successfully unstuck message", event.guild!!).build())
-                .setEphemeral(true)
-                .queue()
+            "view" -> {
+                if (StickyManager.getMessage(channel.id) == null) {
+                    event.replyEmbeds(
+                        EmbedFactory.error(
+                            "There is not a message to sticky for this channel. Use /sticky start <message> to set a message and start sticking",
+                            guild
+                        ).build()
+                    ).setEphemeral(true).queue()
+                    return
+                }
+                event.replyEmbeds(
+                    EmbedFactory.success(
+                        "sending below...",
+                        guild
+                    ).build(),
+                    StickyManager.getEmbed(channel.id)
+                ).setEphemeral(true).queue()
+            }
         }
     }
 }
