@@ -1,7 +1,6 @@
 package me.santio.minehututils.sticky
 
 import dev.minn.jda.ktx.coroutines.await
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.santio.minehututils.bot
 import me.santio.minehututils.factories.EmbedFactory
@@ -9,6 +8,7 @@ import me.santio.minehututils.scope
 import net.dv8tion.jda.api.entities.MessageEmbed
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.timer
 
 /**
  * The stickied manager for handling stickied messages. By design, there can only be one stickied
@@ -26,10 +26,6 @@ object StickyManager {
     )
 
     private val stickyMessages = ConcurrentHashMap<String, StickyMessage>()
-
-    init {
-        startLoop()
-    }
 
     fun start(channelId: String, message: String?, userId: String) {
         val sticky = stickyMessages[channelId]
@@ -74,41 +70,30 @@ object StickyManager {
             it.setTitle(getMessage(channelId))
             it.setFooter("This is an automated sticky message.")
         }.build()
-
         return embed
     }
 
-    private fun startLoop() {
+    fun refreshSticky() {
         scope.launch {
-            while (true) {
-                delay(5000)
+            stickyMessages.values.forEach { sticky -> try {
+                    if (!sticky.active!!) return@forEach
+                    val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel
+                        ?: return@forEach
 
-                stickyMessages.values.forEach { sticky ->
-                    try {
-                        if (!sticky.active!!) return@forEach
-                        val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel
-                            ?: return@forEach
+                    val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
+                    if (lastMessage?.id == sticky.lastMessageId) return@forEach
 
-                        val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
-                        if (lastMessage?.id == sticky.lastMessageId) return@forEach
-
-                        sticky.lastMessageId?.let {
-                            channel.deleteMessageById(it).await()
-                        }
-
-                        val embed = channel.sendMessageEmbeds(EmbedFactory.default("") {
-                            it.setTitle(sticky.message)
-                            it.setFooter("This is an automated sticky message.")
-                        }.build()).await()
-
-                        sticky.lastMessageId = embed.id
-
-
-                    } catch (_: Exception) {
+                    sticky.lastMessageId?.let {
+                        channel.deleteMessageById(it).await()
                     }
+
+                    val embed = channel.sendMessageEmbeds(getEmbed(channel.id)).await()
+
+                    sticky.lastMessageId = embed.id
+
+                } catch (_: Exception) {
                 }
             }
         }
     }
-
 }

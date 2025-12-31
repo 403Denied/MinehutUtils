@@ -21,6 +21,7 @@ import me.santio.minehututils.marketplace.MarketplaceManager
 import me.santio.minehututils.minehut.Minehut
 import me.santio.minehututils.resolvers.DurationResolver
 import me.santio.minehututils.skript.Skript
+import me.santio.minehututils.sticky.StickyManager
 import me.santio.minehututils.tags.TagListener
 import me.santio.minehututils.utils.EnvUtils.env
 import net.dv8tion.jda.api.JDA
@@ -94,6 +95,10 @@ suspend fun main() {
 
     timer.schedule(0, 1000 * 60 * 60 * 24) { // 24 hours
         MarketplaceManager.clearOldMessages()
+    }
+
+    timer.schedule(0, 1000 * 5) { // 5 seconds
+        StickyManager.refreshSticky()
     }
 
     // Attach shutdown hooks
