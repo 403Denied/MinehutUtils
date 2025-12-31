@@ -19,21 +19,24 @@ object StickyManager {
     data class StickyMessage(
         val channelId: String,
         var message: String,
-        val userId: String,
         var lastMessageId: String? = null,
         var active: Boolean? = false
     )
 
     private val stickyMessages = ConcurrentHashMap<String, StickyMessage>()
 
-    fun start(channelId: String, message: String?, userId: String) {
+    /**
+     * Start stickying a message
+     * @param channelId The id of the channel to sticky
+     * @param message The message to sticky
+     */
+    fun start(channelId: String, message: String?) {
         val sticky = stickyMessages[channelId]
 
         if (sticky == null) {
             stickyMessages[channelId] = StickyMessage(
                 channelId = channelId,
                 message = message ?: error("No previous message found. Please provide a message."),
-                userId = userId,
                 active = true
             )
         } else {
@@ -42,28 +45,52 @@ object StickyManager {
         }
     }
 
+    /**
+     * Stop stickying a message
+     * @param channelId The id of the channel to sticky
+     */
     fun stop(channelId: String) {
         stickyMessages[channelId]?.active = false
     }
 
-    fun set(channelId: String, message: String, userID: String) {
+    /**
+     * Set the sticky message for a channel
+     * @param channelId The id of the channel to sticky
+     * @param message The message to sticky
+     */
+    fun set(channelId: String, message: String) {
         val sticky = stickyMessages[channelId]
         if (sticky == null) {
-            start(channelId, message, userID)
+            start(channelId, message)
             stop(channelId)
         } else {
             stickyMessages[channelId]?.message = message
         }
     }
 
+    /**
+     * Get the sticky message for a channel
+     * @param channelId The id of the channel to sticky
+     * @return The message to sticky
+     */
     fun getMessage(channelId: String): String? {
         return stickyMessages[channelId]?.message
     }
 
+    /**
+     * Get whether a message is being stuck or not
+     * @param channelId The id of the channel to sticky
+     * @return Whether the message is being stuck or not
+     */
     fun isActive(channelId: String): Boolean {
         return stickyMessages[channelId]?.active == true
     }
 
+    /**
+     * Get the embed for a stuck message in a channel
+     * @param channelId The id of the channel to sticky
+     * @return The embed being stuck for the channel
+     */
     fun getEmbed(channelId: String): MessageEmbed {
         val embed = EmbedFactory.default("") {
             it.setTitle(getMessage(channelId))
