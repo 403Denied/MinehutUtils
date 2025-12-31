@@ -99,6 +99,9 @@ object StickyManager {
         return embed
     }
 
+    /**
+     * Refresh the stickied messages
+     */
     fun refreshSticky() {
         scope.launch {
             stickyMessages.values.forEach { sticky -> try {
@@ -117,7 +120,8 @@ object StickyManager {
 
                     sticky.lastMessageId = embed.id
 
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }

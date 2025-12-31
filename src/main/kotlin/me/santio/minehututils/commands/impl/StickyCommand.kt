@@ -65,7 +65,7 @@ class StickyCommand : SlashCommand {
                     ).setEphemeral(true).queue()
                     return
                 }
-                StickyManager.start(channel.id, message, event.user.id)
+                StickyManager.start(channel.id, message)
                 event.replyEmbeds(
                     EmbedFactory.success(
                         "Started sticking the message",
@@ -107,7 +107,7 @@ class StickyCommand : SlashCommand {
 
             "set" -> {
                 val message = event.getOption("message")?.asString
-                StickyManager.set(channel.id, message!!, event.user.id)
+                StickyManager.set(channel.id, message!!)
                 event.replyEmbeds(
                     EmbedFactory.success(
                         "Updated the stickied message! sending below...",
