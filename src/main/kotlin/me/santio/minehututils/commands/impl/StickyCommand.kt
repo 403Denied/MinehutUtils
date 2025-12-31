@@ -35,7 +35,8 @@ class StickyCommand : SlashCommand {
                         Option<String>("message", "The message to stick", required = true)
                     )
                 },
-                Subcommand("view", "View the stickied message"))
+                Subcommand("view", "View the stickied message")
+            )
         }
     }
 
@@ -43,7 +44,7 @@ class StickyCommand : SlashCommand {
         val channel = event.channel
         val guild = event.guild
 
-        when (event.subcommandName){
+        when (event.subcommandName) {
             "start" -> {
                 val message = event.getOption("message")?.asString
                     ?: StickyManager.getMessage(channel.id)

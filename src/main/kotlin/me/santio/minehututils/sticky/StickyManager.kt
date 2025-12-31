@@ -110,7 +110,8 @@ object StickyManager {
      */
     fun refreshSticky() {
         scope.launch {
-            stickyMessages.values.forEach { sticky -> try {
+            stickyMessages.values.forEach { sticky ->
+                try {
                     if (!sticky.active) return@forEach
                     val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel
                         ?: return@forEach
