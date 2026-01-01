@@ -3,6 +3,7 @@ package me.santio.minehututils.sticky
 import dev.minn.jda.ktx.coroutines.await
 import kotlinx.coroutines.launch
 import me.santio.minehututils.bot
+import me.santio.minehututils.commands.CommandLoader.logger
 import me.santio.minehututils.factories.EmbedFactory
 import me.santio.minehututils.scope
 import net.dv8tion.jda.api.entities.MessageEmbed
@@ -115,16 +116,22 @@ object StickyManager {
             if (!sticky.active) return@launch
 
             val channel = bot.getGuildChannelById(channelId) as? MessageChannel ?: return@launch
-            try {
-                sticky.lastMessageId?.let {
-                    channel.deleteMessageById(it).await()
+            runCatching {
+                sticky.lastMessageId?.let { id ->
+                    channel.deleteMessageById(id).await()
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            }.onFailure { err ->
+                logger.error("Failed to delete the last sticky message", err)
             }
 
-            val message = channel.sendMessageEmbeds(getEmbed(channelId)).await()
-            sticky.lastMessageId = message.id
+            val embed = runCatching {
+                channel.sendMessageEmbeds(getEmbed(channel.id)).await()
+            }.getOrElse { err ->
+                logger.error("Failed to post sticky message", err)
+                null
+            } ?: return@launch
+            sticky.lastMessageId = embed.id
+
         }
     }
 
@@ -141,16 +148,22 @@ object StickyManager {
                 val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
                 if (lastMessage?.id == sticky.lastMessageId) return@forEach
 
-                try {
-                    sticky.lastMessageId?.let {
-                        channel.deleteMessageById(it).await()
+                runCatching {
+                    sticky.lastMessageId?.let { id ->
+                        channel.deleteMessageById(id).await()
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                }.onFailure { err ->
+                    logger.error("Failed to delete the last sticky message", err)
                 }
-                val embed = channel.sendMessageEmbeds(getEmbed(channel.id)).await()
 
+                val embed = runCatching {
+                    channel.sendMessageEmbeds(getEmbed(channel.id)).await()
+                }.getOrElse { err ->
+                    logger.error("Failed to post sticky message", err)
+                    null
+                } ?: return@launch
                 sticky.lastMessageId = embed.id
+
             }
         }
     }
