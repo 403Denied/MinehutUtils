@@ -32,7 +32,6 @@ object StickyManager {
      */
     fun start(channelId: String, message: String) {
         val sticky = stickyMessages[channelId]
-
         if (sticky == null) {
             stickyMessages[channelId] = StickyMessage(
                 channelId = channelId,
@@ -40,7 +39,7 @@ object StickyManager {
                 active = true
             )
         } else {
-            message.let { sticky.message = it }
+            sticky.message = message
             sticky.active = true
         }
     }
@@ -61,10 +60,12 @@ object StickyManager {
     fun set(channelId: String, message: String) {
         val sticky = stickyMessages[channelId]
         if (sticky == null) {
-            start(channelId, message)
-            stop(channelId)
+            stickyMessages[channelId] = StickyMessage(
+                channelId = channelId,
+                message = message,
+            )
         } else {
-            stickyMessages[channelId]?.message = message
+            sticky.message = message
         }
     }
 
@@ -106,30 +107,50 @@ object StickyManager {
     }
 
     /**
+     * Force a refresh of a stickied message
+     **/
+    fun forceRefresh(channelId: String) {
+        scope.launch {
+            val sticky = stickyMessages[channelId] ?: return@launch
+            if (!sticky.active) return@launch
+
+            val channel = bot.getGuildChannelById(channelId) as? MessageChannel ?: return@launch
+            try {
+                sticky.lastMessageId?.let {
+                    channel.deleteMessageById(it).await()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            val message = channel.sendMessageEmbeds(getEmbed(channelId)).await()
+            sticky.lastMessageId = message.id
+        }
+    }
+
+    /**
      * Refresh the stickied messages
      */
     fun refreshSticky() {
         scope.launch {
             stickyMessages.values.forEach { sticky ->
+
+                if (!sticky.active) return@forEach
+                val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel ?: return@forEach
+
+                val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
+                if (lastMessage?.id == sticky.lastMessageId) return@forEach
+
                 try {
-                    if (!sticky.active) return@forEach
-                    val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel
-                        ?: return@forEach
-
-                    val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
-                    if (lastMessage?.id == sticky.lastMessageId) return@forEach
-
                     sticky.lastMessageId?.let {
                         channel.deleteMessageById(it).await()
                     }
-
-                    val embed = channel.sendMessageEmbeds(getEmbed(channel.id)).await()
-
-                    sticky.lastMessageId = embed.id
-
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
+                val embed = channel.sendMessageEmbeds(getEmbed(channel.id)).await()
+
+                sticky.lastMessageId = embed.id
             }
         }
     }
