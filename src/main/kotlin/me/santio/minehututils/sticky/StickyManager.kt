@@ -108,45 +108,20 @@ object StickyManager {
     }
 
     /**
-     * Force a refresh of a stickied message
-     **/
-    fun forceRefresh(channelId: String) {
-        scope.launch {
-            val sticky = stickyMessages[channelId] ?: return@launch
-            if (!sticky.active) return@launch
-
-            val channel = bot.getGuildChannelById(channelId) as? MessageChannel ?: return@launch
-            runCatching {
-                sticky.lastMessageId?.let { id ->
-                    channel.deleteMessageById(id).await()
-                }
-            }.onFailure { err ->
-                logger.error("Failed to delete the last sticky message", err)
-            }
-
-            val embed = runCatching {
-                channel.sendMessageEmbeds(getEmbed(channel.id)).await()
-            }.getOrElse { err ->
-                logger.error("Failed to post sticky message", err)
-                null
-            } ?: return@launch
-            sticky.lastMessageId = embed.id
-
-        }
-    }
-
-    /**
      * Refresh the stickied messages
+     * @param force Whether to force refresh the stickied messages
      */
-    fun refreshSticky() {
+    fun refreshSticky(force: Boolean = false) {
         scope.launch {
             stickyMessages.values.forEach { sticky ->
 
                 if (!sticky.active) return@forEach
                 val channel = bot.getGuildChannelById(sticky.channelId) as? MessageChannel ?: return@forEach
 
-                val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
-                if (lastMessage?.id == sticky.lastMessageId) return@forEach
+                if (!force) {
+                    val lastMessage = channel.history.retrievePast(1).await().firstOrNull()
+                    if (lastMessage?.id == sticky.lastMessageId) return@forEach
+                }
 
                 runCatching {
                     sticky.lastMessageId?.let { id ->
@@ -161,9 +136,9 @@ object StickyManager {
                 }.getOrElse { err ->
                     logger.error("Failed to post sticky message", err)
                     null
-                } ?: return@launch
-                sticky.lastMessageId = embed.id
+                } ?: return@forEach
 
+                sticky.lastMessageId = embed.id
             }
         }
     }

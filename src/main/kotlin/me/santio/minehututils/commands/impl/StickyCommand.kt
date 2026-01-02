@@ -62,7 +62,7 @@ class StickyCommand : SlashCommand {
         if (message.length > 4096) error("The message is too long. (max 4096 characters)")
 
         StickyManager.start(channel.id, message)
-        StickyManager.forceRefresh(channel.id)
+        StickyManager.refreshSticky(true)
         event.replyEmbeds(
             EmbedFactory.success(
                 "Started sticking the message",
@@ -107,7 +107,7 @@ class StickyCommand : SlashCommand {
         if (message.length > 4096) error("The message is too long. (max 4096 characters)")
 
         StickyManager.set(channel.id, message)
-        StickyManager.forceRefresh(channel.id)
+        StickyManager.refreshSticky(true)
         event.replyEmbeds(
             EmbedFactory.success(
                 "Updated the stickied message!",
