@@ -52,6 +52,20 @@ object EmbedFactory {
     }
 
     /**
+     * An embed that is used for warning messages.
+     * @param text The text that is displayed in the embed.
+     * @param block The block that is used to modify the embed.
+     * @return The embed that is created.
+     */
+    fun warning(text: String, block: (EmbedBuilder) -> Unit = {}): EmbedBuilder {
+        return baseEmbed {
+            it.setDescription("${EmojiResolver.warning().formatted} $text")
+            it.setColor(0xfaba61)
+            block(it)
+        }
+    }
+
+    /**
      * An embed that is used for error messages.
      * @param text The text that is displayed in the embed.
      * @param guild The guild to check for the emote, else null to use discord default

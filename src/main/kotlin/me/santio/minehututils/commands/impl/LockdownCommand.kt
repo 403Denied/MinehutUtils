@@ -56,7 +56,20 @@ class LockdownCommand : SlashCommand {
         val locked = Lockdown.isLocked(channel)
         if (locked == lock) error("Channel is already ${if (lock) "locked" else "unlocked"}")
 
-        Lockdown.lock(channel, lock, reason)
+        runCatching {
+            Lockdown.lock(channel, lock, reason)
+        }.getOrElse { err ->
+            event.replyEmbeds(
+                EmbedFactory.error(
+                    "Failed to ${if (lock) "lock" else "unlock"} the channel ${channel.asMention}!\n\n```diff\n- " +
+                    err.message +
+                    "\n```",
+                    event.guild!!
+                ).build()
+            ).setEphemeral(true).queue()
+
+            return
+        }
 
         GuildLogger.of(event.guild!!).log(
             "A channel was ${if (lock) "locked" else "unlocked"} by ${event.user.asMention}",
@@ -75,18 +88,32 @@ class LockdownCommand : SlashCommand {
         val lock = event.getOption("lock")?.asBoolean ?: true
         val reason = event.getOption("reason")?.asString
 
-        Lockdown.lockAll(event.guild!!.id, lock, reason)
+        val errors = Lockdown.lockAll(event.guild!!.id, lock, reason)
 
         GuildLogger.of(event.guild!!).log(
             "The server was ${if (lock) "locked" else "unlocked"} by ${event.user.asMention}",
             ":identification_card: User: ${event.member?.asMention} *(${event.user.name} - ${event.user.id})*",
             ":label: Locked: ${if (lock) "Yes" else "No"}",
-            ":label: Reason: ${reason?.trim() ?: "No reason provided"}"
+            ":label: Reason: ${reason?.trim() ?: "No reason provided"}",
+            ":triangular_flag_on_post: Errors: ${if (errors.isEmpty()) "No errors occurred" else "Failed modifying ${errors.size} channels"}"
         ).withContext(event).titled("Server Lockdown Changed").post()
 
-        event.replyEmbeds(
-            EmbedFactory.success("Successfully ${if (lock) "locked" else "unlocked"} all channels!", event.guild!!).build()
-        ).setEphemeral(true).queue()
+        if (errors.isEmpty()) {
+            event.replyEmbeds(
+                EmbedFactory.success("Successfully ${if (lock) "locked" else "unlocked"} all channels!", event.guild!!).build()
+            ).setEphemeral(true).queue()
+        } else {
+            event.replyEmbeds(
+                EmbedFactory.warning("Failed to ${if (lock) "lock" else "unlock"} ${errors.size} channel(s)!")
+                    .addField(
+                        "Errors",
+                        "```diff\n" +
+                        errors.joinToString("\n") { "- $it" } +
+                        "\n```",
+                        false
+                    ).build()
+            ).setEphemeral(true).queue()
+        }
     }
 
     override suspend fun execute(event: SlashCommandInteractionEvent) {

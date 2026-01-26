@@ -1,6 +1,8 @@
 package me.santio.minehututils.lockdown
 
 import com.google.auto.service.AutoService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.santio.minehututils.bot
 import me.santio.minehututils.database.DatabaseHandler
 import me.santio.minehututils.database.DatabaseHook
@@ -14,6 +16,7 @@ import net.dv8tion.jda.api.entities.PermissionOverride
 import net.dv8tion.jda.api.entities.Role
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel
 import net.dv8tion.jda.api.entities.channel.middleman.StandardGuildChannel
+import net.dv8tion.jda.api.exceptions.InsufficientPermissionException
 
 /**
  * The lockdown manager for handling the locking of channels and state. In case a channel was locked
@@ -24,6 +27,11 @@ import net.dv8tion.jda.api.entities.channel.middleman.StandardGuildChannel
 object Lockdown: DatabaseHook {
 
     private val lockdownChannels = mutableListOf<LockdownChannel>()
+    private val lockdownPermissions = setOf(
+        Permission.MESSAGE_SEND,
+        Permission.MESSAGE_SEND_IN_THREADS,
+        Permission.MESSAGE_ADD_REACTION,
+    )
 
     override suspend fun onHook() {
         val channels = iron.prepare("SELECT * FROM lockdown_channels").all<LockdownChannel>()
@@ -41,7 +49,9 @@ object Lockdown: DatabaseHook {
 
         return channel.rolePermissionOverrides.firstOrNull {
             it.role == role
-        } ?: channel.upsertPermissionOverride(role).complete()
+        } ?: withContext(Dispatchers.IO) {
+            channel.upsertPermissionOverride(role).complete()
+        }
     }
 
     /**
@@ -95,11 +105,11 @@ object Lockdown: DatabaseHook {
         if (channel.id !in channels) error("Attempted to lockdown a channel that I shouldn't have tried to.")
 
         if (lock && !permissions.denied.contains(Permission.MESSAGE_SEND)) {
-            permissions.manager.setDenied(
-                permissions.denied
-                    + Permission.MESSAGE_SEND
-                    + Permission.MESSAGE_SEND_IN_THREADS
-            ).queue() // Explicitly deny the @everyone role from speaking
+            fun lock() {
+                permissions.manager.setDenied(
+                    permissions.denied + lockdownPermissions
+                ).queue() // Explicitly deny the @everyone role from speaking
+            }
 
             if (channel is TextChannel) {
                 channel.sendMessageEmbeds(
@@ -110,10 +120,17 @@ object Lockdown: DatabaseHook {
                         ${reason ?: ""}
                         """.trim()
                     ).build()
-                ).queue()
+                ).queue {
+                    lock()
+                }
+
+                return
             }
+
+            lock()
         } else if (!lock && permissions.denied.contains(Permission.MESSAGE_SEND)) {
-            permissions.manager.clear(Permission.MESSAGE_SEND, Permission.MESSAGE_SEND_IN_THREADS).queue() // Default to the guild default, cleaning up our mess
+            // Default to the guild default, cleaning up our mess
+            permissions.manager.clear(lockdownPermissions).queue()
 
             if (channel is TextChannel) {
                 // If our message was the last message in the channel, delete it, otherwise we'll send a new one
@@ -132,13 +149,25 @@ object Lockdown: DatabaseHook {
         }
     }
 
-    suspend fun lockAll(guild: String, lock: Boolean, reason: String? = null) {
+    suspend fun lockAll(guild: String, lock: Boolean, reason: String? = null): Set<String> {
         val channels = getLockdownChannels(guild)
+        val errors = mutableSetOf<String>()
 
         for (channel in channels) {
             val channel = bot.getGuildChannelById(channel) ?: continue
-            this.lock(channel as StandardGuildChannel, lock, reason)
+            runCatching {
+                this.lock(channel as StandardGuildChannel, lock, reason)
+            }.getOrElse { err ->
+                val error = when(err) {
+                    is InsufficientPermissionException -> "Missing permission ${err.permission.name}"
+                    else -> err.message ?: err.javaClass.simpleName
+                }
+
+                errors += "Failed to ${if (lock) "lock" else "unlock"} ${channel.name}: ${error}"
+            }
         }
+
+        return errors
     }
 
 }
